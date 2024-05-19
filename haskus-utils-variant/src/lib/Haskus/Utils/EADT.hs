@@ -78,6 +78,7 @@ import Data.Functor.Classes (Show1(..), Eq1(..), Ord1(..))
 -- >>> a == a
 -- True
 
+
 -- | An extensible ADT
 newtype EADT fs
    = EADT (VariantF fs (EADT fs))
@@ -178,6 +179,7 @@ contToEADTM ::
                  (f (V (ApplyAll (EADT xs) xs)))
      -> f (EADT xs)
 contToEADTM f = EADT <$> contToVariantFM f
+
 
 -- | Type class to show EADT components
 class EADTShow f where
