@@ -9,6 +9,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module EADT
    ( testsEADT
@@ -22,13 +23,14 @@ import Haskus.Utils.Functor
 import Haskus.Utils.EADT
 import Haskus.Utils.EADT.TH
 import Haskus.Utils.Types
+import Data.Functor.Classes (Show1(..), Eq1(..), Ord1(..))
 
 -------------------------------
 -- List EADT
 -------------------------------
 
-data ConsF a l = ConsF a l deriving (Functor)
-data NilF    l = NilF      deriving (Functor)
+data ConsF a l = ConsF a l deriving (Functor, Show, Eq, Ord)
+data NilF    l = NilF      deriving (Functor, Show, Eq, Ord)
 
 eadtPattern 'ConsF "Cons"
 eadtPattern 'NilF  "Nil"
@@ -38,23 +40,23 @@ type ListF a = VariantF '[NilF, ConsF a]
 type List  a = EADT     '[NilF, ConsF a]
 
 instance Eq a => Eq1 (ConsF a) where
-   liftEq cmp (ConsF a e1) (ConsF b e2) = a == b && cmp e1 e2
+   liftEq eq (ConsF a e1) (ConsF b e2) = a == b && eq e1 e2
 
 instance Eq1 NilF where
-   liftEq _ _ _ = True
+   liftEq _ NilF NilF = True
 
-instance Ord a => Ord1 (ConsF a) where
+instance (Eq a, Ord a) => Ord1 (ConsF a) where
    liftCompare cmp (ConsF a e1) (ConsF b e2) = compare a b <> cmp e1 e2
 
 instance Ord1 NilF where
-   liftCompare _ _ _ = EQ
+   liftCompare _ NilF NilF = EQ
 
 instance Show a => Show1 (ConsF a) where
-   liftShowsPrec shw _ p (ConsF a e) =
-      showParen (p >= 10) (showString "ConsF " . showsPrec 10 a . showString " " . shw 10 e)
+   liftShowsPrec shw _ p (ConsF a l) =
+      showParen (p >= 10) (showString "ConsF " . showsPrec 10 a . showString " " . shw 10 l)
 
 instance Show1 NilF where
-   liftShowsPrec _ _ _ _ = showString "NilF"
+   liftShowsPrec _ _ _ NilF = showString "NilF"
 
 -- example values:
 list0 :: List String

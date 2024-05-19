@@ -14,6 +14,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingVia #-}
 
 -- | Extensible ADT
 module Haskus.Utils.EADT
@@ -41,6 +42,7 @@ import Haskus.Utils.Types.List
 import Haskus.Utils.Types.Constraint
 import Haskus.Utils.Types
 import Haskus.Utils.ContFlow
+import Data.Functor.Classes (Show1(..), Eq1(..), Ord1(..))
 
 -- $setup
 -- >>> :set -XDataKinds
@@ -76,7 +78,6 @@ import Haskus.Utils.ContFlow
 -- >>> a == a
 -- True
 
-
 -- | An extensible ADT
 newtype EADT fs
    = EADT (VariantF fs (EADT fs))
@@ -89,13 +90,13 @@ instance Functor (VariantF fs) => Recursive (EADT fs) where
 instance Functor (VariantF fs) => Corecursive (EADT fs) where
    embed = EADT
 
-instance Eq1 (VariantF fs) => Eq (EADT fs) where
+instance (Eq1 (VariantF fs), AllEq fs) => Eq (EADT fs) where
   EADT a == EADT b = eq1 a b
 
-instance Ord1 (VariantF fs) => Ord (EADT fs) where
+instance (Ord1 (VariantF fs), AllOrd fs, AllEq fs) => Ord (EADT fs) where
   compare (EADT a) (EADT b) = compare1 a b
 
-instance Show1 (VariantF fs) => Show (EADT fs) where
+instance (Show1 (VariantF fs), AllShow fs) => Show (EADT fs) where
   showsPrec d (EADT a) =
     showParen (d >= 11)
       $ showString "EADT "
@@ -178,10 +179,24 @@ contToEADTM ::
      -> f (EADT xs)
 contToEADTM f = EADT <$> contToVariantFM f
 
-
+-- | Type class to show EADT components
 class EADTShow f where
    eadtShow' :: f String -> String
 
 -- | Show an EADT
 eadtShow :: forall xs. BottomUpF EADTShow xs => EADT xs -> String
 eadtShow = bottomUp (toBottomUp @EADTShow eadtShow')
+
+-- | Helper type classes to enforce constraints
+type family AllEq (fs :: [Type -> Type]) :: Constraint where
+  AllEq '[] = ()
+  AllEq (f ': fs) = (Eq (f (EADT fs)), AllEq fs)
+
+type family AllOrd (fs :: [Type -> Type]) :: Constraint where
+  AllOrd '[] = ()
+  AllOrd (f ': fs) = (Ord (f (EADT fs)), AllOrd fs)
+
+type family AllShow (fs :: [Type -> Type]) :: Constraint where
+  AllShow '[] = ()
+  AllShow (f ': fs) = (Show (f (EADT fs)), AllShow fs)
+  
